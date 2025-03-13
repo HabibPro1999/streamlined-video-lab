@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface SocialAccount {
   id: string;
@@ -22,6 +23,15 @@ interface SocialAccount {
   platform_user_id?: string;
   access_token?: string;
 }
+
+type PlatformData = {
+  name: string;
+  oauthEndpoint: string;
+  color: string;
+  icon: React.ElementType;
+  scope: string;
+  clientId?: string;
+};
 
 const SocialAccountManager = () => {
   const { user } = useAuth();
@@ -32,28 +42,134 @@ const SocialAccountManager = () => {
   const [isAddingAccount, setIsAddingAccount] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Map of platform names to icons
-  const platformIcons: Record<string, React.ElementType> = {
-    instagram: Instagram,
-    youtube: Youtube,
-    tiktok: TikTokIcon,
-    facebook: Facebook,
-    linkedin: Linkedin,
+  // Map of platform data with OAuth endpoints
+  const platformData: Record<string, PlatformData> = {
+    instagram: {
+      name: 'Instagram',
+      oauthEndpoint: 'https://api.instagram.com/oauth/authorize',
+      color: 'text-pink-500 bg-pink-500/10',
+      icon: Instagram,
+      scope: 'user_profile,user_media',
+      clientId: '123456789', // Replace with actual client ID
+    },
+    youtube: {
+      name: 'YouTube',
+      oauthEndpoint: 'https://accounts.google.com/o/oauth2/auth',
+      color: 'text-red-600 bg-red-600/10',
+      icon: Youtube,
+      scope: 'https://www.googleapis.com/auth/youtube',
+      clientId: '123456789', // Replace with actual client ID
+    },
+    tiktok: {
+      name: 'TikTok',
+      oauthEndpoint: 'https://www.tiktok.com/auth/authorize/',
+      color: 'text-gray-900 dark:text-white bg-gray-900/10 dark:bg-white/10',
+      icon: TikTokIcon,
+      scope: 'user.info.basic,video.upload',
+      clientId: '123456789', // Replace with actual client ID
+    },
+    facebook: {
+      name: 'Facebook',
+      oauthEndpoint: 'https://www.facebook.com/v16.0/dialog/oauth',
+      color: 'text-blue-600 bg-blue-600/10',
+      icon: Facebook,
+      scope: 'pages_show_list,pages_read_engagement,pages_manage_posts',
+      clientId: '123456789', // Replace with actual client ID
+    },
+    linkedin: {
+      name: 'LinkedIn',
+      oauthEndpoint: 'https://www.linkedin.com/oauth/v2/authorization',
+      color: 'text-blue-700 bg-blue-700/10',
+      icon: Linkedin,
+      scope: 'r_liteprofile,w_member_social',
+      clientId: '123456789', // Replace with actual client ID
+    },
   };
 
-  // Map of platform names to colors
-  const platformColors: Record<string, string> = {
-    instagram: 'text-pink-500 bg-pink-500/10',
-    youtube: 'text-red-600 bg-red-600/10',
-    tiktok: 'text-gray-900 dark:text-white bg-gray-900/10 dark:bg-white/10',
-    facebook: 'text-blue-600 bg-blue-600/10',
-    linkedin: 'text-blue-700 bg-blue-700/10',
-  };
+  // Create a constant with the platform icons
+  const platformIcons = Object.fromEntries(
+    Object.entries(platformData).map(([key, data]) => [key, data.icon])
+  );
+
+  // Create a constant with the platform colors
+  const platformColors = Object.fromEntries(
+    Object.entries(platformData).map(([key, data]) => [key, data.color])
+  );
 
   useEffect(() => {
     if (user) {
       fetchAccounts();
     }
+  }, [user]);
+
+  useEffect(() => {
+    // Handle OAuth redirect
+    const handleOAuthRedirect = async () => {
+      const params = new URLSearchParams(window.location.hash.substring(1) || window.location.search);
+      const code = params.get('code');
+      const state = params.get('state');
+      const error = params.get('error');
+      
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Authentication failed',
+          description: `There was an error authenticating: ${error}`,
+        });
+        return;
+      }
+      
+      if (code && state && user) {
+        const stateData = JSON.parse(atob(state));
+        const { platform, redirectUri } = stateData;
+        
+        setIsAddingAccount(true);
+        
+        try {
+          // In a real implementation, this would call the backend to exchange the code for tokens
+          // For demo purposes, we'll simulate this
+          const mockTokenResponse = {
+            access_token: `mock-token-${Date.now()}`,
+            refresh_token: `mock-refresh-${Date.now()}`,
+            expires_in: 3600,
+            platform_user_id: `user-${Date.now()}`,
+            account_name: `${platform.charAt(0).toUpperCase() + platform.slice(1)} User`,
+          };
+          
+          await addSocialAccount({
+            userId: user.id,
+            platform: platform as SocialAccount['platform'],
+            accountName: mockTokenResponse.account_name,
+            accessToken: mockTokenResponse.access_token,
+            refreshToken: mockTokenResponse.refresh_token,
+            tokenExpiresAt: new Date(Date.now() + mockTokenResponse.expires_in * 1000),
+            platformUserId: mockTokenResponse.platform_user_id,
+          });
+          
+          toast({
+            title: 'Account connected',
+            description: `Your ${platform} account has been connected successfully.`,
+          });
+          
+          // Remove the OAuth parameters from the URL
+          window.history.replaceState({}, document.title, redirectUri);
+          
+          // Refresh the accounts list
+          fetchAccounts();
+        } catch (error) {
+          console.error('Error exchanging OAuth code:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Authentication failed',
+            description: 'There was an error connecting your social media account.',
+          });
+        } finally {
+          setIsAddingAccount(false);
+        }
+      }
+    };
+    
+    handleOAuthRedirect();
   }, [user]);
 
   const fetchAccounts = async () => {
@@ -62,7 +178,7 @@ const SocialAccountManager = () => {
     setLoading(true);
     try {
       const accountsData = await getUserSocialAccounts(user.id);
-      // Convert to the expected SocialAccount type
+      // Convert the platform string to our specific union type
       setAccounts(accountsData.map((account: any) => ({
         id: account.id,
         platform: account.platform as SocialAccount['platform'],
@@ -80,6 +196,29 @@ const SocialAccountManager = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOAuthLogin = (platform: SocialAccount['platform']) => {
+    if (!user) return;
+    
+    // Prepare the redirect URI (current URL without any parameters)
+    const redirectUri = window.location.origin + window.location.pathname;
+    
+    // Create a state parameter with the platform and redirect URI
+    const state = btoa(JSON.stringify({ platform, redirectUri }));
+    
+    // Build the OAuth URL
+    const platformInfo = platformData[platform];
+    
+    const oauthUrl = new URL(platformInfo.oauthEndpoint);
+    oauthUrl.searchParams.append('client_id', platformInfo.clientId || '');
+    oauthUrl.searchParams.append('redirect_uri', redirectUri);
+    oauthUrl.searchParams.append('scope', platformInfo.scope);
+    oauthUrl.searchParams.append('response_type', 'code');
+    oauthUrl.searchParams.append('state', state);
+    
+    // Redirect to the OAuth URL
+    window.location.href = oauthUrl.toString();
   };
 
   const handleAddAccount = async () => {
@@ -105,6 +244,8 @@ const SocialAccountManager = () => {
         accountName: newAccountName,
         // These fields would come from OAuth process
         accessToken: `demo-token-${Date.now()}`,
+        refreshToken: `demo-refresh-${Date.now()}`,
+        tokenExpiresAt: new Date(Date.now() + 3600 * 1000),
         platformUserId: `user-${Date.now()}`
       });
       
@@ -172,16 +313,49 @@ const SocialAccountManager = () => {
               <DialogTitle>Add Social Media Account</DialogTitle>
             </DialogHeader>
             
-            <Tabs defaultValue="manual" className="mt-4">
+            <Tabs defaultValue="oauth" className="mt-4">
               <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="oauth">OAuth Connect</TabsTrigger>
                 <TabsTrigger value="manual">Manual Setup</TabsTrigger>
-                <TabsTrigger value="oauth" disabled>OAuth Setup</TabsTrigger>
               </TabsList>
               
+              <TabsContent value="oauth" className="mt-4 space-y-4">
+                <Alert>
+                  <AlertTitle>OAuth Integration</AlertTitle>
+                  <AlertDescription>
+                    Connect your social media accounts securely using OAuth. Click on a platform below to start the authorization process.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {Object.entries(platformData).map(([platform, data]) => {
+                    const Icon = data.icon;
+                    
+                    return (
+                      <Button
+                        key={platform}
+                        variant="outline"
+                        className={cn("h-auto py-3 justify-start gap-3", data.color)}
+                        onClick={() => handleOAuthLogin(platform as SocialAccount['platform'])}
+                      >
+                        <Icon className="h-5 w-5" />
+                        <div className="flex flex-col items-start">
+                          <span>Connect {data.name}</span>
+                          <span className="text-xs opacity-70">via OAuth</span>
+                        </div>
+                      </Button>
+                    );
+                  })}
+                </div>
+              </TabsContent>
+              
               <TabsContent value="manual" className="mt-4 space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  This is a demo mode. In a real application, you would connect via OAuth to securely access your social media accounts.
-                </p>
+                <Alert>
+                  <AlertTitle>Demo Mode</AlertTitle>
+                  <AlertDescription>
+                    This is a demo mode. In a real application, you would connect via OAuth to securely access your social media accounts.
+                  </AlertDescription>
+                </Alert>
                 
                 <div className="space-y-2">
                   <label className="text-sm text-muted-foreground">Platform</label>
@@ -225,12 +399,6 @@ const SocialAccountManager = () => {
                     {isAddingAccount ? 'Adding...' : 'Add Account'}
                   </Button>
                 </div>
-              </TabsContent>
-              
-              <TabsContent value="oauth" className="mt-4 space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  In a real application, you would be redirected to the platform to authenticate and grant permissions.
-                </p>
               </TabsContent>
             </Tabs>
           </DialogContent>
@@ -295,7 +463,16 @@ const SocialAccountManager = () => {
         <p className="flex items-center">
           <LinkIcon className="h-4 w-4 mr-2 text-amber-500" />
           <span>
-            <strong>Note:</strong> In a production environment, you would need to register your app with each social media platform's developer program and implement proper OAuth flows.
+            <strong>Note:</strong> For full functionality, you would need to register your app with each social media platform's developer program and implement complete OAuth flows. 
+            The following API keys are needed to make everything work:
+            <ul className="mt-2 ml-6 list-disc">
+              <li>OpenAI API key - for AI-powered content generation</li>
+              <li>Instagram API credentials - for Instagram integration</li>
+              <li>YouTube/Google API credentials - for YouTube integration</li>
+              <li>TikTok API credentials - for TikTok integration</li>
+              <li>Facebook API credentials - for Facebook integration</li>
+              <li>LinkedIn API credentials - for LinkedIn integration</li>
+            </ul>
           </span>
         </p>
       </div>

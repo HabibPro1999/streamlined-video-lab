@@ -1,5 +1,8 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,22 +25,29 @@ serve(async (req) => {
       );
     }
     
-    // In a real implementation, you would use a proper AI API
-    // For this demo, we'll use a function to generate content based on description
+    if (!OPENAI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: 'OpenAI API key is not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
-    let response;
+    // Use OpenAI to generate content
+    let generatedContent;
+    
     if (contentType === 'caption') {
-      response = generateCaption(videoDescription, platforms);
+      generatedContent = await generateCaptionsWithAI(videoDescription, platforms);
     } else if (contentType === 'hashtags') {
-      response = generateHashtags(videoDescription, platforms);
+      generatedContent = await generateHashtagsWithAI(videoDescription, platforms);
     } else {
-      response = {
-        error: 'Invalid content type. Use "caption" or "hashtags"'
-      };
+      return new Response(
+        JSON.stringify({ error: 'Invalid content type. Use "caption" or "hashtags"' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(
-      JSON.stringify(response),
+      JSON.stringify(generatedContent),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
@@ -49,87 +59,109 @@ serve(async (req) => {
   }
 });
 
-// Function to generate captions based on description
-function generateCaption(description: string, platforms: string[]): Record<string, string> {
+// Function to generate captions using OpenAI
+async function generateCaptionsWithAI(description: string, platforms: string[]): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   
-  // Platform-specific caption generation logic
-  platforms.forEach(platform => {
-    let caption = `${description}\n\n`;
+  for (const platform of platforms) {
+    const prompt = `
+You are an expert social media content writer. Generate an engaging caption for a ${platform} post about:
+"${description}"
+
+The caption should:
+- Be in the appropriate style for ${platform}
+- Be concise and engaging
+- Not include hashtags (those will be added separately)
+- Not include any prefacing text like "Caption:" or "Here's your caption:"
+- Just provide the caption text directly
+
+For reference:
+- Instagram captions should be visually descriptive and emotional
+- TikTok captions should be short, catchy, and trendy
+- YouTube captions should be descriptive and include a call to action
+- Facebook captions should be conversational and encourage engagement
+- LinkedIn captions should be professional but personable`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'You are an expert social media content creator.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+      }),
+    });
+
+    const data = await response.json();
     
-    switch (platform) {
-      case 'instagram':
-        caption += "Check out our latest content! Don't forget to like and share! ✨📱 #instaworthy";
-        break;
-      case 'tiktok':
-        caption += "New upload! RT if you agree! 🔥 #tiktokviral";
-        break;
-      case 'youtube':
-        caption += "Thanks for watching! Subscribe for more content and hit the notification bell! 🔔";
-        break;
-      case 'facebook':
-        caption += "What do you think about this? Share your thoughts in the comments below! 💭";
-        break;
-      case 'linkedin':
-        caption += "Excited to share this with my professional network. What are your thoughts on this topic? #professionaldev";
-        break;
-      default:
-        caption += "Thanks for watching!";
+    if (data.error) {
+      throw new Error(`OpenAI API error: ${data.error.message}`);
     }
     
-    result[platform] = caption;
-  });
+    result[platform] = data.choices[0].message.content.trim();
+  }
   
   return result;
 }
 
-// Function to generate hashtags based on description
-function generateHashtags(description: string, platforms: string[]): Record<string, string[]> {
+// Function to generate hashtags using OpenAI
+async function generateHashtagsWithAI(description: string, platforms: string[]): Promise<Record<string, string[]>> {
   const result: Record<string, string[]> = {};
   
-  // List of common hashtags
-  const commonHashtags = ['content', 'digital', 'social', 'trending', 'viral'];
-  
-  // Add hashtags based on words in the description
-  const descriptionWords = description.toLowerCase()
-    .replace(/[^\w\s]/gi, '')
-    .split(' ')
-    .filter(word => word.length > 3)
-    .slice(0, 3);
-  
-  const baseHashtags = [
-    ...commonHashtags,
-    ...descriptionWords
-  ];
-  
-  // Platform-specific hashtag generation logic
-  platforms.forEach(platform => {
-    let hashtags = [...baseHashtags];
+  for (const platform of platforms) {
+    const prompt = `
+Generate a list of 10 relevant and effective hashtags for a ${platform} post about:
+"${description}"
+
+The hashtags should:
+- Be appropriate for ${platform}'s algorithm and audience
+- Include a mix of popular and niche hashtags for better reach
+- Each start with # symbol
+- Be separated by commas
+- Not include any additional text or explanations
+- Just provide the hashtags in a comma-separated list
+
+For reference:
+- Instagram hashtags should be a mix of popular and niche tags, around 5-10 tags
+- TikTok hashtags should include trending tags and challenges, around 3-5 tags
+- YouTube hashtags should be concise and directly relevant, around 3-5 tags
+- Facebook hashtags should be fewer and more general, around 2-3 tags
+- LinkedIn hashtags should be professional and industry-relevant, around 3-5 tags`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'You are an expert on social media hashtag optimization.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+      }),
+    });
+
+    const data = await response.json();
     
-    switch (platform) {
-      case 'instagram':
-        hashtags = [...hashtags, 'instagram', 'insta', 'igdaily', 'instagood', 'instadaily'];
-        break;
-      case 'tiktok':
-        hashtags = [...hashtags, 'tiktok', 'tiktokviral', 'fyp', 'foryoupage', 'tiktokalgorithm'];
-        break;
-      case 'youtube':
-        hashtags = [...hashtags, 'youtube', 'youtubeshorts', 'youtuber', 'subscribe', 'video'];
-        break;
-      case 'facebook':
-        hashtags = [...hashtags, 'facebook', 'facebooklive', 'share', 'community', 'connect'];
-        break;
-      case 'linkedin':
-        hashtags = [...hashtags, 'linkedin', 'career', 'professional', 'business', 'networking'];
-        break;
+    if (data.error) {
+      throw new Error(`OpenAI API error: ${data.error.message}`);
     }
     
-    // Format hashtags and select random subset to keep the list reasonable
-    result[platform] = hashtags
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 10)
-      .map(tag => `#${tag}`);
-  });
+    // Parse the response to extract hashtags
+    const hashtagText = data.choices[0].message.content.trim();
+    const hashtags = hashtagText.split(/,\s*/).map(tag => tag.trim()).filter(tag => tag.startsWith('#'));
+    
+    result[platform] = hashtags;
+  }
   
   return result;
 }

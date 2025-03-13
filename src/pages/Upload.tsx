@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -5,10 +6,13 @@ import NavBar from '@/components/NavBar';
 import VideoUpload from '@/components/VideoUpload';
 import PlatformSelector from '@/components/PlatformSelector';
 import AIFeatures from '@/components/AIFeatures';
-import { Check, ChevronRight, CheckCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { Check, ChevronRight, CheckCircle, Calendar as CalendarIcon, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createPost, deleteVideoFromStorage, getUserSocialAccounts } from '@/services/videoService';
 import { useToast } from '@/components/ui/use-toast';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Upload = () => {
   const navigate = useNavigate();
@@ -20,7 +24,7 @@ const Upload = () => {
   const [videoUrl, setVideoUrl] = useState('');
   const [videoFilePath, setVideoFilePath] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
-  const [aiDescription, setAiDescription] = useState('');
+  const [videoDescription, setVideoDescription] = useState('');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['instagram', 'tiktok', 'youtube']);
   
   const [aiGeneratedContent, setAiGeneratedContent] = useState<{
@@ -32,6 +36,15 @@ const Upload = () => {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSocialAccounts, setHasSocialAccounts] = useState(false);
+
+  // Determine if YouTube is the only selected platform
+  const isYouTubeOnly = selectedPlatforms.length === 1 && selectedPlatforms[0] === 'youtube';
+
+  // Determine if we need a title (YouTube only or multiple platforms including YouTube)
+  const needsTitle = selectedPlatforms.includes('youtube');
+
+  // Determine if we need a description (always for non-YouTube platforms)
+  const needsDescription = selectedPlatforms.some(p => p !== 'youtube') || selectedPlatforms.length === 0;
 
   useEffect(() => {
     // Smooth scroll to top when component mounts
@@ -70,6 +83,27 @@ const Upload = () => {
   };
 
   const handleNext = () => {
+    if (currentStep === 2) {
+      // Validate form based on selected platforms
+      if (needsTitle && !videoTitle.trim()) {
+        toast({
+          variant: 'destructive',
+          title: 'Missing information',
+          description: 'Please enter a title for your video.',
+        });
+        return;
+      }
+      
+      if (needsDescription && !videoDescription.trim()) {
+        toast({
+          variant: 'destructive',
+          title: 'Missing information',
+          description: 'Please enter a description for your video.',
+        });
+        return;
+      }
+    }
+    
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
       // Scroll to top with each step for better UX
@@ -112,7 +146,7 @@ const Upload = () => {
       const post = await createPost({
         userId: user.id,
         title: videoTitle || uploadedFile.name,
-        description: aiDescription,
+        description: videoDescription,
         videoUrl: videoUrl,
         thumbnailUrl: aiGeneratedContent.thumbnails ? 
           Object.values(aiGeneratedContent.thumbnails)[0] as string : 
@@ -222,27 +256,57 @@ const Upload = () => {
               {!hasSocialAccounts && (
                 <div className="glass-panel p-4 bg-amber-500/10 border-amber-500/20 mb-6">
                   <p className="text-sm flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
+                    <Info className="h-5 w-5 mr-2 text-amber-500" />
                     <span>You don't have any social accounts connected yet. You can <a href="/settings" className="text-primary underline">connect your accounts</a> in Settings.</span>
                   </p>
                 </div>
               )}
               
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm text-muted-foreground">Video Title</label>
-                  <input
-                    type="text"
-                    value={videoTitle}
-                    onChange={(e) => setVideoTitle(e.target.value)}
-                    className="glass-input w-full"
-                    placeholder="Enter a title for your video"
-                  />
-                </div>
-                
                 <PlatformSelector onSelectionChange={handlePlatformChange} />
+                
+                <Alert className="mt-6">
+                  <AlertDescription>
+                    <div className="flex items-start space-x-2">
+                      <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Different platforms have different content formats. YouTube videos use titles, while platforms like Instagram and TikTok primarily use descriptions/captions.
+                        </p>
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+                
+                {/* Dynamic form based on selected platforms */}
+                <div className="space-y-4 mt-6">
+                  {needsTitle && (
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Video Title {isYouTubeOnly ? '' : '(for YouTube)'}</label>
+                      <Input
+                        type="text"
+                        value={videoTitle}
+                        onChange={(e) => setVideoTitle(e.target.value)}
+                        className="glass-input w-full"
+                        placeholder="Enter a title for your video"
+                      />
+                    </div>
+                  )}
+                  
+                  {needsDescription && (
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">
+                        Video Description {isYouTubeOnly ? '' : '(for Instagram, TikTok, etc.)'}
+                      </label>
+                      <Textarea
+                        value={videoDescription}
+                        onChange={(e) => setVideoDescription(e.target.value)}
+                        className="glass-input w-full min-h-[100px]"
+                        placeholder="Enter a description or caption for your video"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -250,19 +314,15 @@ const Upload = () => {
           {currentStep === 3 && (
             <div className="animate-fade-in">
               <h2 className="text-2xl font-semibold mb-6">Generate AI-Powered Content</h2>
-              <div className="mb-6">
-                <label className="block text-sm text-muted-foreground mb-2">
-                  Briefly describe your video (optional)
-                </label>
-                <textarea
-                  value={aiDescription}
-                  onChange={(e) => setAiDescription(e.target.value)}
-                  className="glass-input w-full min-h-[100px]"
-                  placeholder="Example: A behind-the-scenes look at our new product launch, featuring team interviews and product demonstrations."
-                />
-              </div>
+              <Alert className="mb-6">
+                <AlertDescription>
+                  <p className="text-sm">
+                    This feature requires an OpenAI API key to generate real content. The AI will generate content based on your video description.
+                  </p>
+                </AlertDescription>
+              </Alert>
               <AIFeatures 
-                description={aiDescription} 
+                description={videoDescription || videoTitle} 
                 platforms={selectedPlatforms}
                 onGenerate={handleAIGenerate}
               />
@@ -290,6 +350,11 @@ const Upload = () => {
                         <p className="text-sm text-muted-foreground">
                           {videoTitle || (uploadedFile?.name || "Your video is ready for distribution")}
                         </p>
+                        {videoDescription && (
+                          <p className="text-xs text-muted-foreground mt-1 truncate max-w-sm">
+                            {videoDescription.length > 60 ? videoDescription.substring(0, 60) + '...' : videoDescription}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

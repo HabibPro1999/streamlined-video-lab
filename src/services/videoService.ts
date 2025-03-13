@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { Json } from '@/integrations/supabase/types';
@@ -47,7 +48,7 @@ export const createPost = async (postData: {
   try {
     const { data, error } = await supabase
       .from('posts')
-      .insert([{
+      .insert({
         user_id: postData.userId,
         title: postData.title,
         description: postData.description,
@@ -55,7 +56,7 @@ export const createPost = async (postData: {
         thumbnail_url: postData.thumbnailUrl,
         ai_generated_caption: postData.aiGeneratedCaption,
         ai_generated_hashtags: postData.aiGeneratedHashtags
-      }])
+      })
       .select();
       
     if (error) throw error;
@@ -83,13 +84,13 @@ export const schedulePost = async (scheduleData: {
   try {
     const { data, error } = await supabase
       .from('post_schedules')
-      .insert([{
+      .insert({
         post_id: scheduleData.postId,
         social_account_id: scheduleData.socialAccountId,
         scheduled_time: scheduleData.scheduledTime.toISOString(),
         platform_specific_caption: scheduleData.platformSpecificCaption,
         platform_specific_hashtags: scheduleData.platformSpecificHashtags
-      }])
+      })
       .select();
       
     if (error) throw error;
@@ -136,7 +137,7 @@ export const addSocialAccount = async (accountData: {
   try {
     const { data, error } = await supabase
       .from('social_accounts')
-      .insert([{
+      .insert({
         user_id: accountData.userId,
         platform: accountData.platform,
         account_name: accountData.accountName,
@@ -144,7 +145,7 @@ export const addSocialAccount = async (accountData: {
         refresh_token: accountData.refreshToken,
         token_expires_at: accountData.tokenExpiresAt ? accountData.tokenExpiresAt.toISOString() : null,
         platform_user_id: accountData.platformUserId
-      }])
+      })
       .select();
       
     if (error) throw error;
