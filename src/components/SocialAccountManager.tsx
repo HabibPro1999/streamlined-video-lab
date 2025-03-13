@@ -1,12 +1,14 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  Instagram, Youtube, TikTok, Facebook, Linkedin, 
+  Instagram, Youtube, Facebook, Linkedin, 
   Plus, Trash2, Link as LinkIcon
 } from 'lucide-react';
+import { TikTokIcon } from './icons/TikTokIcon';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserSocialAccounts, addSocialAccount } from '@/services/videoService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -34,7 +36,7 @@ const SocialAccountManager = () => {
   const platformIcons: Record<string, React.ElementType> = {
     instagram: Instagram,
     youtube: Youtube,
-    tiktok: TikTok,
+    tiktok: TikTokIcon,
     facebook: Facebook,
     linkedin: Linkedin,
   };
@@ -60,7 +62,14 @@ const SocialAccountManager = () => {
     setLoading(true);
     try {
       const accountsData = await getUserSocialAccounts(user.id);
-      setAccounts(accountsData);
+      // Convert to the expected SocialAccount type
+      setAccounts(accountsData.map((account: any) => ({
+        id: account.id,
+        platform: account.platform as SocialAccount['platform'],
+        account_name: account.account_name,
+        platform_user_id: account.platform_user_id,
+        access_token: account.access_token
+      })));
     } catch (error) {
       console.error('Error fetching accounts:', error);
       toast({

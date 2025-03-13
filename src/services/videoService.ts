@@ -1,6 +1,6 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { Json } from '@/integrations/supabase/types';
 
 // Function to upload video to Supabase storage
 export const uploadVideo = async (file: File, userId: string) => {
@@ -47,7 +47,15 @@ export const createPost = async (postData: {
   try {
     const { data, error } = await supabase
       .from('posts')
-      .insert([postData])
+      .insert([{
+        user_id: postData.userId,
+        title: postData.title,
+        description: postData.description,
+        video_url: postData.videoUrl,
+        thumbnail_url: postData.thumbnailUrl,
+        ai_generated_caption: postData.aiGeneratedCaption,
+        ai_generated_hashtags: postData.aiGeneratedHashtags
+      }])
       .select();
       
     if (error) throw error;
@@ -75,7 +83,13 @@ export const schedulePost = async (scheduleData: {
   try {
     const { data, error } = await supabase
       .from('post_schedules')
-      .insert([scheduleData])
+      .insert([{
+        post_id: scheduleData.postId,
+        social_account_id: scheduleData.socialAccountId,
+        scheduled_time: scheduleData.scheduledTime.toISOString(),
+        platform_specific_caption: scheduleData.platformSpecificCaption,
+        platform_specific_hashtags: scheduleData.platformSpecificHashtags
+      }])
       .select();
       
     if (error) throw error;
@@ -128,7 +142,7 @@ export const addSocialAccount = async (accountData: {
         account_name: accountData.accountName,
         access_token: accountData.accessToken,
         refresh_token: accountData.refreshToken,
-        token_expires_at: accountData.tokenExpiresAt,
+        token_expires_at: accountData.tokenExpiresAt ? accountData.tokenExpiresAt.toISOString() : null,
         platform_user_id: accountData.platformUserId
       }])
       .select();

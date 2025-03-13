@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
-import { Instagram, Youtube, TikTok, Facebook, Linkedin, Check } from 'lucide-react';
+import { Instagram, Youtube, Facebook, Linkedin, Check } from 'lucide-react';
+import { TikTokIcon } from './icons/TikTokIcon';
 import { cn } from '@/lib/utils';
 
 type Platform = 'instagram' | 'tiktok' | 'youtube' | 'facebook' | 'linkedin';
@@ -14,7 +15,7 @@ const PlatformSelector = ({ onSelectionChange }: PlatformSelectorProps) => {
 
   const platforms = [
     { id: 'instagram' as Platform, name: 'Instagram', icon: Instagram, color: 'bg-pink-500' },
-    { id: 'tiktok' as Platform, name: 'TikTok', icon: TikTok, color: 'bg-black' },
+    { id: 'tiktok' as Platform, name: 'TikTok', icon: TikTokIcon, color: 'bg-black' },
     { id: 'youtube' as Platform, name: 'YouTube', icon: Youtube, color: 'bg-red-600' },
     { id: 'facebook' as Platform, name: 'Facebook', icon: Facebook, color: 'bg-blue-600' },
     { id: 'linkedin' as Platform, name: 'LinkedIn', icon: Linkedin, color: 'bg-blue-700' },

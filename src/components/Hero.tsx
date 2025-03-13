@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Instagram, Youtube, TikTok, Facebook, Linkedin } from 'lucide-react';
+import { ChevronRight, Instagram, Youtube, Facebook, Linkedin } from 'lucide-react';
+import { TikTokIcon } from './icons/TikTokIcon';
 import { cn } from '@/lib/utils';
 
 const Hero = () => {
@@ -101,7 +101,7 @@ const Hero = () => {
           </div>
           <div className="flex flex-col items-center">
             <div className="w-16 h-16 flex items-center justify-center glass-panel mb-3">
-              <TikTok className="h-8 w-8 text-primary" />
+              <TikTokIcon className="h-8 w-8 text-primary" />
             </div>
             <span className="text-xs font-medium">TikTok</span>
           </div>

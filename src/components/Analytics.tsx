@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
-import { Instagram, Youtube, TikTok, ArrowUp, TrendingUp } from 'lucide-react';
+import { Instagram, Youtube, ArrowUp, TrendingUp } from 'lucide-react';
+import { TikTokIcon } from './icons/TikTokIcon';
 import { cn } from '@/lib/utils';
 
-// Generate some sample data
 const generateData = () => {
   const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   return daysOfWeek.map(day => ({
@@ -70,7 +69,7 @@ const Analytics = () => {
       title: 'TikTok Views', 
       value: '42.8K', 
       change: '+28%', 
-      icon: TikTok,
+      icon: TikTokIcon,
       color: 'text-black dark:text-white',
       bgColor: 'bg-black/10 dark:bg-white/10' 
     },

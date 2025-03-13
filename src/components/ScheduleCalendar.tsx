@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
-import { Calendar as CalendarIcon, Clock, Instagram, Youtube, TikTok, Facebook, Linkedin, Plus, X } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Instagram, Youtube, Facebook, Linkedin, Plus, X } from 'lucide-react';
+import { TikTokIcon } from './icons/TikTokIcon';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
