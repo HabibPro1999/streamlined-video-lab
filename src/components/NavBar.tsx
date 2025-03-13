@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -34,7 +33,7 @@ const NavBar = () => {
   const { user, profile, signOut, loading } = useAuth();
 
   const navLinks = [
-    { name: 'Home', href: '/', icon: Home, alwaysShow: true },
+    { name: 'Home', href: '/', icon: Home },
     { name: 'Dashboard', href: '/dashboard', icon: BarChart3, requiresAuth: true },
     { name: 'Upload', href: '/upload', icon: Upload, requiresAuth: true },
     { name: 'Calendar', href: '/calendar', icon: Calendar, requiresAuth: true },
@@ -74,11 +73,6 @@ const NavBar = () => {
     return 'U';
   };
 
-  // Filter nav links based on auth status
-  const filteredNavLinks = navLinks.filter(link => 
-    link.alwaysShow || (user && link.requiresAuth)
-  );
-
   return (
     <nav
       className={cn(
@@ -96,26 +90,28 @@ const NavBar = () => {
         {/* Desktop Navigation */}
         {!isMobile && (
           <div className="flex items-center space-x-1">
-            {filteredNavLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = location.pathname === link.href;
+            {navLinks
+              .filter(link => !link.requiresAuth || user)
+              .map((link) => {
+                const Icon = link.icon;
+                const isActive = location.pathname === link.href;
 
-              return (
-                <Link
-                  key={link.name}
-                  to={link.href}
-                  className={cn(
-                    "px-3 py-2 rounded-md flex items-center transition-colors",
-                    isActive 
-                      ? "text-primary bg-primary/10" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  )}
-                >
-                  <Icon className="h-4 w-4 mr-2" />
-                  <span>{link.name}</span>
-                </Link>
-              );
-            })}
+                return (
+                  <Link
+                    key={link.name}
+                    to={link.href}
+                    className={cn(
+                      "px-3 py-2 rounded-md flex items-center transition-colors",
+                      isActive 
+                        ? "text-primary bg-primary/10" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 mr-2" />
+                    <span>{link.name}</span>
+                  </Link>
+                );
+              })}
               
             {!loading && (
               <>
@@ -197,26 +193,28 @@ const NavBar = () => {
       {isMobile && isMenuOpen && (
         <div className="px-6 pb-6 pt-2 bg-background/95 backdrop-blur-md border-b animate-fade-in">
           <div className="flex flex-col space-y-2">
-            {filteredNavLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = location.pathname === link.href;
+            {navLinks
+              .filter(link => !link.requiresAuth || user)
+              .map((link) => {
+                const Icon = link.icon;
+                const isActive = location.pathname === link.href;
 
-              return (
-                <Link
-                  key={link.name}
-                  to={link.href}
-                  className={cn(
-                    "px-3 py-2 rounded-md flex items-center transition-colors",
-                    isActive 
-                      ? "text-primary bg-primary/10" 
-                      : "text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  <Icon className="h-4 w-4 mr-2" />
-                  <span>{link.name}</span>
-                </Link>
-              );
-            })}
+                return (
+                  <Link
+                    key={link.name}
+                    to={link.href}
+                    className={cn(
+                      "px-3 py-2 rounded-md flex items-center transition-colors",
+                      isActive 
+                        ? "text-primary bg-primary/10" 
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 mr-2" />
+                    <span>{link.name}</span>
+                  </Link>
+                );
+              })}
               
             {!loading && !user && (
               <Link
