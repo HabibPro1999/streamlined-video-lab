@@ -97,18 +97,20 @@ const Auth = () => {
       
       if (authError) throw authError;
       
+      // Only insert into profiles if the user was created successfully
       if (authData.user) {
         // Insert into profiles table
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert([
-            { 
-              id: authData.user.id,
-              username, 
-            }
-          ]);
+          .insert({
+            id: authData.user.id,
+            username
+          });
           
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          throw new Error('Failed to create user profile.');
+        }
       }
       
       toast({

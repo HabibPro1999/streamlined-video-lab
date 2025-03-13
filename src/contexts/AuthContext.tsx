@@ -70,7 +70,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('id', userId)
         .single();
         
-      if (error) throw error;
+      if (error) {
+        // If profile doesn't exist, create it
+        if (error.code === 'PGRST116') {
+          const userData = await supabase.auth.getUser();
+          if (userData.data?.user) {
+            const username = userData.data.user.email?.split('@')[0] || 'user';
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert({ id: userId, username })
+              .select()
+              .single();
+              
+            if (createError) throw createError;
+            setProfile(newProfile);
+            return;
+          }
+        }
+        throw error;
+      }
+      
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);

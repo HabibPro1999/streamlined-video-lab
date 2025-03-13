@@ -1,6 +1,6 @@
 
 import { useEffect, useState, ReactNode } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -11,6 +11,7 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isChecking, setIsChecking] = useState(true);
   
   useEffect(() => {
@@ -21,6 +22,13 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    // If we're on a blank page but have a user, redirect to dashboard
+    if (user && !loading && !isChecking && location.pathname === "/") {
+      navigate('/dashboard');
+    }
+  }, [user, loading, isChecking, location.pathname, navigate]);
   
   if (loading || isChecking) {
     return (
