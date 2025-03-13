@@ -1,19 +1,35 @@
 
-import { useState } from 'react';
-import { Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Upload, X, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { uploadVideo, deleteVideoFromStorage } from '@/services/videoService';
+import { toast } from '@/components/ui/use-toast';
+import { Toaster } from '@/components/ui/sonner';
 
 interface VideoUploadProps {
-  onUploadComplete?: (file: File) => void;
+  onUploadComplete?: (file: File, fileUrl: string, filePath: string) => void;
 }
 
 const VideoUpload = ({ onUploadComplete }: VideoUploadProps) => {
+  const { user } = useAuth();
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filePath, setFilePath] = useState<string | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+
+  // Clean up the preview URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -60,6 +76,12 @@ const VideoUpload = ({ onUploadComplete }: VideoUploadProps) => {
       return;
     }
     
+    // Validate file size (50MB max)
+    if (file.size > 50 * 1024 * 1024) {
+      setError('File size exceeds 50MB limit');
+      return;
+    }
+    
     // Reset error state
     setError(null);
     
@@ -68,40 +90,86 @@ const VideoUpload = ({ onUploadComplete }: VideoUploadProps) => {
     setPreviewUrl(url);
     setUploadedFile(file);
     
-    // Simulate upload
-    simulateUpload(file);
+    // Start actual upload
+    uploadFileToSupabase(file);
   };
 
-  const simulateUpload = (file: File) => {
+  const uploadFileToSupabase = async (file: File) => {
+    if (!user) {
+      setError('You must be logged in to upload videos');
+      return;
+    }
+    
     setIsUploading(true);
     setUploadProgress(0);
     
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsUploading(false);
-          if (onUploadComplete) onUploadComplete(file);
-          return 100;
-        }
-        return prev + 5;
+    try {
+      // Use an interval to simulate progress until the actual upload completes
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 5;
+        });
+      }, 300);
+      
+      // Upload to Supabase Storage
+      const { filePath: path, publicUrl } = await uploadVideo(file, user.id);
+      setFilePath(path);
+      setFileUrl(publicUrl);
+      
+      // Complete the progress bar
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      setIsUploading(false);
+      
+      // Call the onUploadComplete callback
+      if (onUploadComplete) {
+        onUploadComplete(file, publicUrl, path);
+      }
+      
+      toast({
+        title: "Upload successful",
+        description: "Your video has been uploaded successfully."
       });
-    }, 200);
+    } catch (error: any) {
+      setError(error.message || 'Upload failed');
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
-  const removeFile = () => {
+  const removeFile = async () => {
+    // Remove from preview
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
+    
+    // Delete from storage if uploaded
+    if (filePath) {
+      try {
+        await deleteVideoFromStorage(filePath);
+      } catch (error) {
+        console.error('Error deleting file from storage:', error);
+        // Continue anyway, we want to clear the UI
+      }
+    }
+    
+    // Reset state
     setUploadedFile(null);
     setPreviewUrl(null);
     setUploadProgress(0);
     setIsUploading(false);
     setError(null);
+    setFilePath(null);
+    setFileUrl(null);
   };
 
   return (
     <div className="w-full">
+      <Toaster />
       {!uploadedFile ? (
         <div
           className={cn(
@@ -173,8 +241,9 @@ const VideoUpload = ({ onUploadComplete }: VideoUploadProps) => {
               <button 
                 onClick={removeFile}
                 className="glass-button p-2 hover:bg-destructive/10"
+                title="Remove video"
               >
-                <X className="h-5 w-5" />
+                <Trash2 className="h-5 w-5 text-destructive" />
               </button>
             </div>
             

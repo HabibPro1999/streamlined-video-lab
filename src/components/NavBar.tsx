@@ -1,25 +1,53 @@
 
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronRight } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Home,
+  Upload,
+  Calendar,
+  BarChart3,
+  Settings,
+  Menu,
+  X,
+  LogOut,
+  User
+} from 'lucide-react';
+import useMobile from '@/hooks/use-mobile';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 
 const NavBar = () => {
+  const isMobile = useMobile();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, profile, signOut, loading } = useAuth();
 
   const navLinks = [
-    { name: 'Home', path: '/' },
-    { name: 'Dashboard', path: '/dashboard' },
-    { name: 'Upload', path: '/upload' },
-    { name: 'Calendar', path: '/calendar' },
+    { name: 'Home', href: '/', icon: Home },
+    { name: 'Dashboard', href: '/dashboard', icon: BarChart3, requiresAuth: true },
+    { name: 'Upload', href: '/upload', icon: Upload, requiresAuth: true },
+    { name: 'Calendar', href: '/calendar', icon: Calendar, requiresAuth: true },
+    { name: 'Settings', href: '/settings', icon: Settings, requiresAuth: true },
   ];
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPosition = window.scrollY;
-      setIsScrolled(scrollPosition > 10);
+      if (window.scrollY > 20) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -28,88 +56,175 @@ const NavBar = () => {
 
   // Close mobile menu when route changes
   useEffect(() => {
-    setIsMobileMenuOpen(false);
+    setIsMenuOpen(false);
   }, [location.pathname]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
+  const getInitials = () => {
+    if (profile?.username) {
+      return profile.username.substring(0, 2).toUpperCase();
+    }
+    if (user?.email) {
+      return user.email.substring(0, 2).toUpperCase();
+    }
+    return 'U';
+  };
 
   return (
     <nav
       className={cn(
-        'fixed top-0 left-0 w-full z-50 transition-all duration-300 px-6 md:px-12',
-        isScrolled
-          ? 'py-3 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm'
-          : 'py-6 bg-transparent'
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        isScrolled ? "bg-background/80 backdrop-blur-md border-b" : "bg-transparent"
       )}
     >
-      <div className="max-w-7xl mx-auto flex justify-between items-center">
-        <Link 
-          to="/" 
-          className="flex items-center space-x-2 text-primary font-bold text-xl md:text-2xl"
-        >
-          <span className="font-mono">Streamline</span>
+      <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
+        <Link to="/" className="flex items-center">
+          <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
+            Social Media Manager
+          </span>
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-8">
-          <div className="flex space-x-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={cn(
-                  'px-4 py-2 rounded-xl transition-all duration-300 font-medium text-sm',
-                  location.pathname === link.path
-                    ? 'text-primary bg-primary/5'
-                    : 'text-foreground/80 hover:text-primary hover:bg-primary/5'
-                )}
-              >
-                {link.name}
-              </Link>
-            ))}
-          </div>
-          
-          <Link 
-            to="/upload" 
-            className="glass-button bg-primary text-white hover:bg-primary/90 flex items-center"
-          >
-            <span>Upload Video</span>
-            <ChevronRight className="ml-1 h-4 w-4" />
-          </Link>
-        </div>
+        {!isMobile && (
+          <div className="flex items-center space-x-1">
+            {navLinks
+              .filter(link => !link.requiresAuth || user)
+              .map((link) => {
+                const Icon = link.icon;
+                const isActive = location.pathname === link.href;
 
-        {/* Mobile Menu Button */}
-        <button
-          className="md:hidden text-foreground/80 hover:text-primary"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+                return (
+                  <Link
+                    key={link.name}
+                    to={link.href}
+                    className={cn(
+                      "px-3 py-2 rounded-md flex items-center transition-colors",
+                      isActive 
+                        ? "text-primary bg-primary/10" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 mr-2" />
+                    <span>{link.name}</span>
+                  </Link>
+                );
+              })}
+              
+            {!loading && (
+              <>
+                {user ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                        <Avatar>
+                          <AvatarFallback className="bg-primary/10 text-primary">
+                            {getInitials()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem className="flex items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>{profile?.username || user.email}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleSignOut} className="text-red-500 flex items-center">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Log out</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Link
+                    to="/auth"
+                    className="glass-button bg-primary text-white hover:bg-primary/90 ml-2"
+                  >
+                    Sign In
+                  </Link>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Mobile Navigation */}
+        {isMobile && (
+          <div className="flex items-center">
+            {!loading && user && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full mr-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                        {getInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="flex items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>{profile?.username || user.email}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-red-500 flex items-center">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-2 rounded-md hover:bg-muted"
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full p-4 bg-background/95 backdrop-blur-md animate-slide-down border-b border-border">
+      {isMobile && isMenuOpen && (
+        <div className="px-6 pb-6 pt-2 bg-background/95 backdrop-blur-md border-b animate-fade-in">
           <div className="flex flex-col space-y-2">
-            {navLinks.map((link) => (
+            {navLinks
+              .filter(link => !link.requiresAuth || user)
+              .map((link) => {
+                const Icon = link.icon;
+                const isActive = location.pathname === link.href;
+
+                return (
+                  <Link
+                    key={link.name}
+                    to={link.href}
+                    className={cn(
+                      "px-3 py-2 rounded-md flex items-center transition-colors",
+                      isActive 
+                        ? "text-primary bg-primary/10" 
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 mr-2" />
+                    <span>{link.name}</span>
+                  </Link>
+                );
+              })}
+              
+            {!loading && !user && (
               <Link
-                key={link.path}
-                to={link.path}
-                className={cn(
-                  'px-4 py-3 rounded-xl transition-all duration-200 font-medium',
-                  location.pathname === link.path
-                    ? 'text-primary bg-primary/5'
-                    : 'text-foreground/80 hover:text-primary hover:bg-primary/5'
-                )}
+                to="/auth"
+                className="glass-button bg-primary text-white hover:bg-primary/90 mt-2 justify-center"
               >
-                {link.name}
+                Sign In
               </Link>
-            ))}
-            <Link 
-              to="/upload" 
-              className="glass-button mt-2 bg-primary text-white hover:bg-primary/90 flex items-center justify-center"
-            >
-              <span>Upload Video</span>
-              <ChevronRight className="ml-1 h-4 w-4" />
-            </Link>
+            )}
           </div>
         </div>
       )}

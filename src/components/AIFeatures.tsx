@@ -1,18 +1,28 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Hash, AlignLeft, Clock, CheckCircle2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { generateAIContent } from '@/services/videoService';
+import { useAuth } from '@/contexts/AuthContext';
 
 type AIFeatureType = 'captions' | 'hashtags' | 'thumbnails' | 'schedule';
 
 interface AIFeaturesProps {
   description?: string;
-  onGenerate?: (feature: AIFeatureType) => void;
+  platforms: string[];
+  onGenerate?: (featureType: AIFeatureType, content: any) => void;
 }
 
-const AIFeatures = ({ description = '', onGenerate }: AIFeaturesProps) => {
+const AIFeatures = ({ description = '', platforms, onGenerate }: AIFeaturesProps) => {
+  const { user } = useAuth();
   const [generatingFeature, setGeneratingFeature] = useState<AIFeatureType | null>(null);
   const [generatedFeatures, setGeneratedFeatures] = useState<AIFeatureType[]>([]);
+  const [generatedContent, setGeneratedContent] = useState<Record<AIFeatureType, any>>({
+    captions: null,
+    hashtags: null,
+    thumbnails: null,
+    schedule: null
+  });
 
   const features = [
     { 
@@ -41,23 +51,94 @@ const AIFeatures = ({ description = '', onGenerate }: AIFeaturesProps) => {
     },
   ];
 
-  const handleGenerate = (feature: AIFeatureType) => {
+  const handleGenerate = async (feature: AIFeatureType) => {
+    if (!user) return;
+    if (!description) {
+      alert('Please provide a description of your video first.');
+      return;
+    }
+    if (platforms.length === 0) {
+      alert('Please select at least one platform.');
+      return;
+    }
+    
     setGeneratingFeature(feature);
     
-    // Simulate AI generation
-    setTimeout(() => {
-      setGeneratingFeature(null);
-      setGeneratedFeatures(prev => [...prev, feature]);
+    try {
+      let content;
+      
+      switch (feature) {
+        case 'captions':
+          content = await generateAIContent(description, platforms, 'caption');
+          break;
+        case 'hashtags':
+          content = await generateAIContent(description, platforms, 'hashtags');
+          break;
+        case 'thumbnails':
+          // For demo purposes, we'll just simulate this
+          // In a real app, this would call an AI image generation service
+          content = simulateThumbnailGeneration(platforms);
+          break;
+        case 'schedule':
+          // For demo purposes, we'll just simulate this
+          content = simulateScheduleRecommendations(platforms);
+          break;
+      }
+      
+      setGeneratedContent(prev => ({
+        ...prev,
+        [feature]: content
+      }));
+      
+      setGeneratedFeatures(prev => 
+        prev.includes(feature) ? prev : [...prev, feature]
+      );
       
       if (onGenerate) {
-        onGenerate(feature);
+        onGenerate(feature, content);
       }
-    }, 2000);
+    } catch (error) {
+      console.error(`Error generating ${feature}:`, error);
+    } finally {
+      setGeneratingFeature(null);
+    }
   };
 
   const regenerateFeature = (feature: AIFeatureType) => {
     setGeneratedFeatures(prev => prev.filter(f => f !== feature));
     handleGenerate(feature);
+  };
+  
+  // Helper function to simulate thumbnail generation (in a real app this would use an AI image generation API)
+  const simulateThumbnailGeneration = (platforms: string[]) => {
+    // This would be replaced by actual AI image generation
+    const result: Record<string, string> = {};
+    
+    platforms.forEach(platform => {
+      // In real implementation, this would be image URLs
+      result[platform] = `https://picsum.photos/seed/${platform}${Math.random()}/640/360`;
+    });
+    
+    return result;
+  };
+  
+  // Helper function to simulate schedule recommendations
+  const simulateScheduleRecommendations = (platforms: string[]) => {
+    const result: Record<string, string[]> = {};
+    
+    const times = {
+      instagram: ['8:30 AM', '12:00 PM', '7:00 PM', '9:00 PM'],
+      tiktok: ['9:00 AM', '11:00 AM', '2:00 PM', '8:00 PM'],
+      youtube: ['3:00 PM', '5:00 PM', '8:00 PM', '9:00 PM'],
+      facebook: ['1:00 PM', '3:00 PM', '9:00 AM', '7:00 PM'],
+      linkedin: ['9:00 AM', '12:00 PM', '5:00 PM', '6:00 PM'],
+    };
+    
+    platforms.forEach(platform => {
+      result[platform] = platform in times ? times[platform] : ['12:00 PM', '6:00 PM'];
+    });
+    
+    return result;
   };
 
   return (
@@ -123,12 +204,14 @@ const AIFeatures = ({ description = '', onGenerate }: AIFeaturesProps) => {
               ) : (
                 <button
                   onClick={() => handleGenerate(feature.id)}
-                  disabled={isGenerating}
+                  disabled={isGenerating || !description || platforms.length === 0}
                   className={cn(
                     "glass-button w-full flex items-center justify-center",
                     isGenerating 
                       ? "bg-primary/10 text-primary/70" 
-                      : "bg-primary/10 text-primary hover:bg-primary/20"
+                      : !description || platforms.length === 0
+                        ? "bg-muted text-muted-foreground cursor-not-allowed"
+                        : "bg-primary/10 text-primary hover:bg-primary/20"
                   )}
                 >
                   {isGenerating ? (

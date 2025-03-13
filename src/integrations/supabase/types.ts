@@ -9,13 +9,185 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      post_schedules: {
+        Row: {
+          analytics: Json | null
+          created_at: string
+          id: string
+          platform_post_id: string | null
+          platform_specific_caption: string | null
+          platform_specific_hashtags: string | null
+          post_id: string
+          scheduled_time: string
+          social_account_id: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          analytics?: Json | null
+          created_at?: string
+          id?: string
+          platform_post_id?: string | null
+          platform_specific_caption?: string | null
+          platform_specific_hashtags?: string | null
+          post_id: string
+          scheduled_time: string
+          social_account_id: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          analytics?: Json | null
+          created_at?: string
+          id?: string
+          platform_post_id?: string | null
+          platform_specific_caption?: string | null
+          platform_specific_hashtags?: string | null
+          post_id?: string
+          scheduled_time?: string
+          social_account_id?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_schedules_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_schedules_social_account_id_fkey"
+            columns: ["social_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          ai_generated_caption: string | null
+          ai_generated_hashtags: string | null
+          created_at: string
+          description: string | null
+          id: string
+          status: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          video_url: string | null
+        }
+        Insert: {
+          ai_generated_caption?: string | null
+          ai_generated_hashtags?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          video_url?: string | null
+        }
+        Update: {
+          ai_generated_caption?: string | null
+          ai_generated_hashtags?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id: string
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      social_accounts: {
+        Row: {
+          access_token: string | null
+          account_name: string
+          created_at: string
+          id: string
+          platform: string
+          platform_user_id: string | null
+          refresh_token: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          account_name: string
+          created_at?: string
+          id?: string
+          platform: string
+          platform_user_id?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          account_name?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          platform_user_id?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      user_owns_post: {
+        Args: {
+          post_id: string
+        }
+        Returns: boolean
+      }
+      user_owns_post_schedule: {
+        Args: {
+          schedule_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
