@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
+import { toast } from '@/components/ui/use-toast';
 
 interface AuthContextType {
   session: Session | null;
@@ -44,6 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
+        console.log('Auth state change:', event, newSession?.user?.id);
+        
         setSession(newSession);
         setUser(newSession?.user || null);
         
@@ -68,14 +71,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
         
       if (error) {
+        throw error;
+      }
+      
+      if (!data) {
         // If profile doesn't exist, create it
-        if (error.code === 'PGRST116') {
-          const userData = await supabase.auth.getUser();
-          if (userData.data?.user) {
-            const username = userData.data.user.email?.split('@')[0] || 'user';
+        console.log('Profile not found, creating new profile for user:', userId);
+        const userData = await supabase.auth.getUser();
+        
+        if (userData.data?.user) {
+          const username = userData.data.user.email?.split('@')[0] || 'user';
+          try {
             const { data: newProfile, error: createError } = await supabase
               .from('profiles')
               .insert({ id: userId, username })
@@ -83,14 +92,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .single();
               
             if (createError) throw createError;
+            
             setProfile(newProfile);
-            return;
+            console.log('Created new profile:', newProfile);
+          } catch (insertError: any) {
+            console.error('Error creating profile:', insertError);
+            
+            // If we get a duplicate key error, try fetching the profile again
+            // as it might have been created in another session
+            if (insertError.code === '23505') { // PostgreSQL duplicate key violation
+              const { data: existingProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+              
+              setProfile(existingProfile);
+            } else {
+              setProfile(null);
+            }
           }
         }
-        throw error;
+      } else {
+        setProfile(data);
       }
-      
-      setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
       setProfile(null);
@@ -100,8 +125,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
+      toast({
+        title: 'Signed out',
+        description: 'You have been successfully signed out.',
+      });
     } catch (error) {
       console.error('Error signing out:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Sign out failed',
+        description: 'There was an error signing you out.',
+      });
     }
   };
 

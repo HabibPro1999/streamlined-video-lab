@@ -30,6 +30,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     }
   }, [user, loading, isChecking, location.pathname, navigate]);
   
+  // Check if we're still loading authentication data
   if (loading || isChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -38,11 +39,12 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
   
+  // If there's no user, redirect to the auth page
   if (!user) {
-    // Redirect to auth page, but save the intended destination
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
   
+  // If we have a user and we're not loading, render the children
   return <>{children}</>;
 };
 
